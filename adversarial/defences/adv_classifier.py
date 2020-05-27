@@ -14,3 +14,4 @@ class AdvClassifier(models.Model):
 
         outputs = None # set as proper value
         return outputs
+        
