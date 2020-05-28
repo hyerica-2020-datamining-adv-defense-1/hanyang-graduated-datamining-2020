@@ -1,4 +1,4 @@
-from .attack_method import attack, AttackMethod
+from .attack_method import attack, random_attack, AttackMethod
 import importlib
 import pathlib
 

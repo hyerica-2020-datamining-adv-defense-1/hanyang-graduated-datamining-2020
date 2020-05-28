@@ -1,2 +1,2 @@
 from . import *
-from .defence_models import BaseModel
+from .ensemble import EnsembleModel

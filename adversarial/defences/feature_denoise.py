@@ -7,9 +7,9 @@ class FeatureDenoisingBlock(models.Model):
     def __init__(self, in_channels):
         super(FeatureDenoisingBlock, self).__init__()
 
-        self.embedding1 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding=0)
-        self.embedding2 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding=0)
-        self.embedding3 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding=0)
+        self.embedding1 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME")
+        self.embedding2 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME")
+        self.embedding3 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME")
 
     def call(self, inputs, training=False):
         n, h, w, c = tf.shape(inputs)
@@ -34,6 +34,8 @@ class FeatureDenoisingBlock(models.Model):
         return theta, phi
 
     def _compute_gaussian_channel(self, theta, phi):
+        n = tf.shape(theta)[0]
+
         log_gaussian_channels = []
 
         for i in range(n):

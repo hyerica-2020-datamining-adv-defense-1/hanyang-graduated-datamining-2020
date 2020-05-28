@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 from tensorflow.keras import layers, models, applications
+from adversarial.defences.feature_denoise import FeatureDenoisingBlock
 
 
 class BaseModel(models.Model):
@@ -42,7 +43,66 @@ class MobileNetV2(BaseModel):
             applications.MobileNetV2(input_shape=[160, 160, 3], include_top=False, weights=None)
         )
 
-TargetModel = MobileNetV2
+# TargetModel = MobileNetV2
+class TargetModel(models.Model):
+
+    def __init__(self):
+        super(TargetModel, self).__init__()
+
+        self.base_model = MobileNetV2()
+        self.feature_denoising_blocks = []
+
+        self.add_block_num = []
+
+        for layer in self.base_model.base_model.layers:
+            out_channel = layer.output_shape[-1]
+            if layer.name.endswith("_add"):
+                self.feature_denoising_blocks.append(FeatureDenoisingBlock(out_channel))
+                self.add_block_num.append(int(layer.name.split("_")[-2]))
+                
+        self.top_layer = models.Sequential([
+            layers.Dense(10),
+            layers.Activation(tf.nn.softmax),
+        ])
+
+    def load_custom_weights_for_mobilenet(self, path):
+        self.base_model.build(input_shape=(None, 160, 160, 3))
+        with open(path, "rb") as f:
+            weights = pickle.load(f)
+            self.base_model.set_weights(weights)
+
+    def load_custom_weights(self, path):
+        with open(path, "rb") as f:
+            weights = pickle.load(f)
+            self.set_weights(weights)
+
+    def save_custom_weights(self, path):
+        with open(path, "wb") as f:
+            weights = self.get_weights()
+            pickle.dump(weights, f)
+
+    def call(self, inputs, training=False):
+        x = inputs
+        cnt = 0
+
+        residual_input = None
+
+        for layer in self.base_model.base_model.layers:
+            if residual_input is None and cnt < len(self.add_block_num) and layer.name.startswith(f"block_{self.add_block_num[cnt]}"):
+                residual_input = x
+
+            if layer.name.endswith("_add"):
+                x = layer([x, residual_input], training=training)
+                x = self.feature_denoising_blocks[cnt](x, training=training)
+                residual_input = None
+                cnt += 1
+            else:
+                x = layer(x, training=training)
+
+        x = layers.Flatten()(x)
+        outputs = self.top_layer(x, training=training)
+
+        return outputs
 
 
 class VGG16(BaseModel):

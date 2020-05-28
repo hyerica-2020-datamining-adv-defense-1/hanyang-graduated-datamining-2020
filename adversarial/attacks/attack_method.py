@@ -1,5 +1,6 @@
 import foolbox as fb
 import tensorflow as tf
+import numpy as np
 from tensorflow.keras import layers, models
 
 
@@ -22,8 +23,10 @@ class AttackMethod():
         assert self.is_setup_called == True, "You should call setup() first before call()."
         assert self.attack is not None, "AttackMethod.attack attribute must not be None."
 
-        images = tf.convert_to_tensor(images)
-        labels = tf.convert_to_tensor(labels)
+        if type(images) == np.ndarray:
+            images = tf.convert_to_tensor(images)
+        if type(labels) == np.ndarray:
+            labels = tf.convert_to_tensor(labels)
 
         adv, clipped, success = self.attack(self.fbmodel, images, labels, epsilons=self.epsilons)
         return adv, clipped, success
@@ -34,6 +37,19 @@ class AttackMethod():
     @classmethod
     def register(cls, attack):
         cls.attack_methods.append(attack)
+
+    @classmethod
+    def random_attack(cls, tfmodel, images, labels, epsilons):
+        attack_method_cls = np.random.choice(cls.attack_methods)
+        epsilon = np.random.choice(epsilons)
+
+        attack_method = attack_method_cls(tfmodel, epsilon)
+        attack_method.setup()
+
+        adv, clipped, success = attack_method(images, labels)
+        results = (adv, clipped, success)
+
+        return results
 
     @classmethod
     def attack(cls, tfmodel, images, labels, epsilons):
@@ -51,3 +67,6 @@ class AttackMethod():
 
 def attack(tfmodel, images, labels, epsilons):
     return AttackMethod.attack(tfmodel, images, labels, epsilons)
+
+def random_attack(tfmodel, images, labels, epsilons):
+    return AttackMethod.random_attack(tfmodel, images, labels, epsilons)
