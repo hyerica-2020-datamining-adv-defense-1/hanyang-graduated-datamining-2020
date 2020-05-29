@@ -24,9 +24,9 @@ class AttackMethod():
         assert self.attack is not None, "AttackMethod.attack attribute must not be None."
 
         if type(images) == np.ndarray:
-            images = tf.convert_to_tensor(images)
+            images = tf.convert_to_tensor(images, dtype=tf.float32)
         if type(labels) == np.ndarray:
-            labels = tf.convert_to_tensor(labels)
+            labels = tf.convert_to_tensor(labels, dtype=tf.int32)
 
         adv, clipped, success = self.attack(self.fbmodel, images, labels, epsilons=self.epsilons)
         return adv, clipped, success

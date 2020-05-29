@@ -40,7 +40,7 @@ class MobileNetV2(BaseModel):
 
     def __init__(self):
         super(MobileNetV2, self).__init__(
-            applications.MobileNetV2(input_shape=[160, 160, 3], include_top=False, weights=None)
+            applications.MobileNetV2(input_shape=[160, 160, 3], include_top=False, weights="imagenet")
         )
 
 # TargetModel = MobileNetV2
@@ -50,20 +50,17 @@ class TargetModel(models.Model):
         super(TargetModel, self).__init__()
 
         self.base_model = MobileNetV2()
-        self.feature_denoising_blocks = []
-
         self.add_block_num = []
+        
+        feature_denoising_blocks = []
 
         for layer in self.base_model.base_model.layers:
             out_channel = layer.output_shape[-1]
             if layer.name.endswith("_add"):
-                self.feature_denoising_blocks.append(FeatureDenoisingBlock(out_channel))
+                feature_denoising_blocks.append(FeatureDenoisingBlock(out_channel))
                 self.add_block_num.append(int(layer.name.split("_")[-2]))
                 
-        self.top_layer = models.Sequential([
-            layers.Dense(10),
-            layers.Activation(tf.nn.softmax),
-        ])
+        self.feature_denoising_blocks = feature_denoising_blocks
 
     def load_custom_weights_for_mobilenet(self, path):
         self.base_model.build(input_shape=(None, 160, 160, 3))
@@ -82,6 +79,8 @@ class TargetModel(models.Model):
             pickle.dump(weights, f)
 
     def call(self, inputs, training=False):
+        n = tf.shape(inputs)[0]
+        
         x = inputs
         cnt = 0
 
@@ -92,15 +91,17 @@ class TargetModel(models.Model):
                 residual_input = x
 
             if layer.name.endswith("_add"):
-                x = layer([x, residual_input], training=training)
+                x = layer([residual_input, x], training=training)
                 x = self.feature_denoising_blocks[cnt](x, training=training)
                 residual_input = None
                 cnt += 1
             else:
                 x = layer(x, training=training)
 
-        x = layers.Flatten()(x)
-        outputs = self.top_layer(x, training=training)
+        # x = self.base_model.base_model(x)
+
+        x = tf.reshape(x, shape=(n, -1))
+        outputs = self.base_model.top_layer(x, training=training)
 
         return outputs
 
@@ -117,7 +118,7 @@ class VGG19(BaseModel):
 
     def __init__(self):
         super(VGG19, self).__init__(
-            applications.VGG19(input_shape=[160, 160, 3], include_top=False, weieghts="imagenet")
+            applications.VGG19(input_shape=[160, 160, 3], include_top=False, weights="imagenet")
         )
 
 
