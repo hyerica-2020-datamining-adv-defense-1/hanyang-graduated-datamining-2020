@@ -7,25 +7,26 @@ class FeatureDenoisingBlock(models.Model):
     def __init__(self, in_channels):
         super(FeatureDenoisingBlock, self).__init__()
 
-        self.embedding1 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME")
-        self.embedding2 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME")
-        self.embedding3 = layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME")
+        self.embeddings = [
+            layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME"),
+            layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME"),
+            layers.Conv2D(in_channels, (1, 1), strides=(1, 1), padding="SAME"),
+        ]
 
     def call(self, inputs, training=False):
         n, h, w, c = tf.shape(inputs)
 
         theta, phi = self._embedding(inputs, training)
         gaussian_channel = self._compute_gaussian_channel(theta, phi)
-        softmax = tf.nn.softmax(gaussian_channel, axis=-1)
-        denoised = self._denoising(inputs, softmax, training)
+        denoised = self._denoising(inputs, gaussian_channel, training)
 
         return inputs + denoised
 
     def _embedding(self, inputs, training):
         n, h, w, c = tf.shape(inputs)
 
-        theta = self.embedding1(inputs, training=training)
-        phi = self.embedding2(inputs, training=training)
+        theta = self.embeddings[0](inputs, training=training)
+        phi = self.embeddings[1](inputs, training=training)
 
         theta = tf.reshape(theta, shape=(n, h*w, c))
         phi = tf.reshape(phi, shape=(n, h*w, c))
@@ -42,11 +43,11 @@ class FeatureDenoisingBlock(models.Model):
             log_gaussian_channels.append(tf.matmul(theta[i], phi[i]))
 
         log_gaussian_channel = tf.stack(log_gaussian_channels, axis=0)
-        gaussian_channel = tf.math.exp(log_gaussian_channel)
+        gaussian_channel = tf.nn.softmax(log_gaussian_channel, axis=-1)
 
         return gaussian_channel
 
-    def _denoising(self, inputs, softmax, training):
+    def _denoising(self, inputs, gaussian_channel, training):
         n, h, w, c = tf.shape(inputs)
         
         inputs_reshaped = tf.reshape(inputs, shape=(n, h*w, c))
@@ -54,10 +55,10 @@ class FeatureDenoisingBlock(models.Model):
         denoised = []
 
         for i in range(n):
-            denoised.append(tf.matmul(softmax[i], inputs_reshaped[i]))
+            denoised.append(tf.matmul(gaussian_channel[i], inputs_reshaped[i]))
 
         denoised = tf.stack(denoised, axis=0)
         denoised = tf.reshape(denoised, shape=(n, h, w, c))
-        denoised = self.embedding3(denoised, training=training)
+        denoised = self.embeddings[2](denoised, training=training)
 
         return denoised
