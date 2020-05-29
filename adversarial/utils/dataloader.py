@@ -13,7 +13,7 @@ def load_data(path):
 
 def concat_data(x_batch, y_batch, adv_samples):
     x_batch = tf.concat([x_batch, adv_samples], axis=0)
-    y_batch = tf.tile(y_batch, [tf.shape(adv_samples)[0] // tf.shape(x_batch)[0]])
+    y_batch = tf.tile(y_batch, [2])
     return x_batch, y_batch
 
 
@@ -42,7 +42,7 @@ class DataLoader():
         rindex = np.arange(0, self.X.shape[0])
         np.random.shuffle(rindex)
 
-        for b in len(self):
+        for b in range(len(self)):
             start_index = b*self.batch_size
             end_index = min(self.X.shape[0], (b+1)*self.batch_size)
 
@@ -54,8 +54,8 @@ class DataLoader():
                 r = rindex[i]
                 x_batch[i - start_index], y_batch[i - start_index], adv_batch[i - start_index] = self[r]
 
-            x_batch = tf.convert_to_tensor(x_batch)
-            y_batch = tf.convert_to_tensor(y_batch)
-            adv_batch = tf.convert_to_tensor(adv_batch)
+            x_batch = tf.convert_to_tensor(x_batch, dtype=tf.float32)
+            y_batch = tf.convert_to_tensor(y_batch, dtype=tf.int32)
+            adv_batch = tf.convert_to_tensor(adv_batch, dtype=tf.int32)
 
             yield x_batch, y_batch, adv_batch
