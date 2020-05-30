@@ -54,6 +54,11 @@ class DataLoader():
                 r = rindex[i]
                 x_batch[i - start_index], y_batch[i - start_index], adv_batch[i - start_index] = self[r]
 
+                if np.random.rand() < 0.5:
+                    x_batch[i - start_index] += np.random.normal(loc=0, scale=0.1, size=(DataLoader.HEIGHT, DataLoader.WIDTH, DataLoader.CHANNEL))
+                    x_batch[i - start_index][x_batch[i - start_index] < 0] = 0
+                    x_batch[i - start_index][x_batch[i - start_index] > 1] = 1
+
             x_batch = tf.convert_to_tensor(x_batch, dtype=tf.float32)
             y_batch = tf.convert_to_tensor(y_batch, dtype=tf.int32)
             adv_batch = tf.convert_to_tensor(adv_batch, dtype=tf.int32)
