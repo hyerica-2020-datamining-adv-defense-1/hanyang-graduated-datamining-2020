@@ -12,18 +12,6 @@ def load_data(path):
 
 
 def concat_data(x_batch, y_batch, adv_samples, random_noise=True):
-    x_batch_numpy = x_batch.numpy()
-    
-    if random_noise is True:
-        for i in range(x_batch_numpy.shape[0]):
-            if np.random.rand() < 0.5:
-                img = x_batch_numpy[i]
-                img += np.random.normal(loc=0.0, scale=0.1, size=(img.shape))
-                img[img < 0] = 0
-                img[img > 1] = 1
-                x_batch_numpy[i] = img
-                
-    x_batch = tf.convert_to_tensor(x_batch_numpy, dtype=tf.float32)
     
     x_batch = tf.concat([x_batch, adv_samples], axis=0)
     y_batch = tf.tile(y_batch, [2])

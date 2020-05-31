@@ -18,17 +18,15 @@ class FeatureDistinctionBlock(models.Model):
         batch_size = tf.shape(inputs)[0]
         
         distance_matrix = tf.tile(tf.reduce_sum(inputs**2 , axis=1, keepdims = True), (1,self.num_classes)) + \
-            tf.tile(tf.reduce_sum(self.centers**2, axis=1, keepdims = True), (1, batch_size)).transpose(1,0)
+            tf.transpose(tf.tile(tf.reduce_sum(self.centers**2, axis=1, keepdims = True), (1, batch_size)), (1,0))
+        distance_matrix = distance_matrix - 2*(tf.matmul(inputs, tf.transpose(self.centers, (1,0))))
 
-        distance_matrix = distance_matrix - 2*(tf.matmul(inputs, self.centers.transpose(1,0)))
-
-        classes = tf.cast(tf.range(self.num_classes), tf.int32)
-
+        classes = tf.range(self.num_classes, dtype=tf.float32)
         labels = tf.tile(tf.expand_dims(labels,1),(1,self.num_classes))
 
-        mask = (labels) == (tf.tile(tf.expand_dims(classes,0), (batch_size,1)))
+        mask = tf.cast(labels, dtype=tf.int32) == tf.cast(tf.tile(tf.expand_dims(classes,0), (batch_size,1)), dtype=tf.int32)
 
-        distance = distance_matrix * mask
+        distance = distance_matrix * tf.cast(mask, dtype=tf.float32)
         distance = tf.clip_by_value(distance,1e-12,1e+12)
 
         loss = tf.reduce_mean(distance_matrix)

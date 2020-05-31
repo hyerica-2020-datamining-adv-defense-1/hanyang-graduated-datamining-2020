@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 from tensorflow.keras import layers, models, applications
-from adversarial.defences.feature_denoise import FeatureDenoisingBlock
+from adversarial.defences import FeatureDenoisingBlock, FeatureDistinctionBlock
 
 
 class BaseModel(models.Model):
@@ -55,8 +55,8 @@ class TargetModel(models.Model):
         feature_denoising_blocks = []
 
         for layer in self.base_model.base_model.layers:
-            out_channel = layer.output_shape[-1]
             if layer.name.endswith("_add"):
+                out_channel = layer.output_shape[-1]
                 feature_denoising_blocks.append(FeatureDenoisingBlock(out_channel))
                 self.add_block_num.append(int(layer.name.split("_")[-2]))
                 
@@ -107,6 +107,46 @@ class TargetModel(models.Model):
         outputs = self.base_model.top_layer(x, training=training)
 
         return outputs , feature_maps
+    
+class TargetModelV2(models.Model):
+    
+    def __init__(self):
+        super(TargetModelV2, self).__init__()
+        
+        self.target_model = TargetModel()
+        feature_distinction_blocks = []
+
+        for layer in self.target_model.base_model.base_model.layers:
+            if layer.name.endswith("_add"):
+                h, w, c = layer.output_shape[1:]
+                feature_distinction_blocks.append(FeatureDistinctionBlock(h*w*c))
+                
+        self.feature_distinction_blocks = feature_distinction_blocks
+                
+    def load_custom_weights_for_target_model_v1(self, path):
+        self.target_model.load_custom_weights(path)
+    
+    def load_custom_weights(self, path):
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+            self.load_weights(data)
+            
+    def save_custom_weights(self, path):
+        with open(path, "wb") as f:
+            pickle.dump(self.get_weights(), f)
+                
+    def call(self, inputs, labels, training=False):
+        n = tf.shape(inputs)[0]
+        
+        outputs, feature_maps = self.target_model(inputs, training=training)
+        
+        Lpc = []
+        
+        for i, feature_map in enumerate(feature_maps):
+            feature_map = tf.reshape(feature_map, shape=(n, -1))
+            Lpc.append(self.feature_distinction_blocks[i](feature_map, labels, training=training))
+            
+        return outputs, Lpc
 
 
 class VGG16(BaseModel):
