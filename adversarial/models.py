@@ -86,12 +86,15 @@ class TargetModel(models.Model):
 
         residual_input = None
 
+        feature_maps = []
+
         for layer in self.base_model.base_model.layers:
             if residual_input is None and cnt < len(self.add_block_num) and layer.name.startswith(f"block_{self.add_block_num[cnt]}"):
                 residual_input = x
 
             if layer.name.endswith("_add"):
                 x = layer([residual_input, x], training=training)
+                feature_maps.append(x)
                 x = self.feature_denoising_blocks[cnt](x, training=training)
                 residual_input = None
                 cnt += 1
@@ -103,7 +106,7 @@ class TargetModel(models.Model):
         x = tf.reshape(x, shape=(n, -1))
         outputs = self.base_model.top_layer(x, training=training)
 
-        return outputs
+        return outputs , feature_maps
 
 
 class VGG16(BaseModel):
