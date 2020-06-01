@@ -11,9 +11,11 @@ def load_data(path):
     return X_train, y_train, X_test, y_test
 
 
-def concat_data(x_batch, y_batch, adv_samples):
+def concat_data(x_batch, y_batch, adv_samples, random_noise=True):
+    
     x_batch = tf.concat([x_batch, adv_samples], axis=0)
     y_batch = tf.tile(y_batch, [2])
+    
     return x_batch, y_batch
 
 
