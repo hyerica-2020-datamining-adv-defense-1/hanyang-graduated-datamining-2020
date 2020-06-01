@@ -14,13 +14,11 @@ class AdvClassifier(models.Model):
         self.dense1 = tf.keras.layers.Dense(20, activation = 'relu')
         self.dense2 = tf.keras.layers.Dense(2, activation = 'softmax')
 
-    def call(self, inputs, training=False):
+    def call(self, x):
         # forward propagation here
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.flatten(x)
         x = self.dense1(x)
-        x = self.dense2(x)
-        outputs = x # set as proper value
-        return outputs
+        return self.dense2(x)
         
