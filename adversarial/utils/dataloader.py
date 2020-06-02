@@ -11,12 +11,27 @@ def load_data(path):
     return X_train, y_train, X_test, y_test
 
 
-def concat_data(x_batch, y_batch, adv_samples, random_noise=True):
+def concat_data(x_batch, y_batch, adv_samples):
     
     x_batch = tf.concat([x_batch, adv_samples], axis=0)
     y_batch = tf.tile(y_batch, [2])
     
     return x_batch, y_batch
+
+
+def add_noise(x_batch):
+    n = tf.shape(x_batch)[0]
+    x_batch_numpy = x_batch.numpy()
+    
+    for i in range(n):
+        img = x_batch_numpy[i]
+        if np.random.rand() < 0.5:
+            img += np.random.normal(loc=0.0, scale=0.1, size=img.shape)
+            img[img < 0] = 0.0
+            img[img > 1] = 1.0
+            
+    x_batch_with_noise = tf.convert_to_tensor(x_batch_numpy)
+    return x_batch_with_noise
 
 
 class DataLoader():
@@ -38,7 +53,14 @@ class DataLoader():
         return int(np.ceil(self.X.shape[0] / self.batch_size))
 
     def __getitem__(self, index):
-        return (self.X[index], self.y[index], np.random.randint(0, DataLoader.N_CLASSES))
+        x = self.X[index]
+        y = self.y[index]
+        
+        lst = list(range(DataLoader.N_CLASSES))
+        lst.remove(y)
+        adv = np.random.choice(lst)
+        
+        return (x, y, adv)
 
     def __iter__(self):
         rindex = np.arange(0, self.X.shape[0])
