@@ -104,7 +104,7 @@ class TargetModel(models.Model):
         x = tf.reshape(x, shape=(n, -1))
         outputs = self.base_model.top_layer(x, training=training)
 
-        return outputs , feature_maps
+        return outputs, feature_maps
     
 class TargetModelV2(models.Model):
     
