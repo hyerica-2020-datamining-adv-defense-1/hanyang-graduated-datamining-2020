@@ -16,3 +16,5 @@ class CarliniWagner(AttackMethod):
 
 
 #AttackMethod.register(CarliniWagner)
+
+

@@ -45,6 +45,8 @@ class AttackMethod():
 
         attack_method = attack_method_cls(tfmodel, epsilon)
         attack_method.setup()
+            
+        # print(attack_method.name)
 
         adv, clipped, success = attack_method(images, labels)
         results = (adv, clipped, success)

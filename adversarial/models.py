@@ -101,8 +101,6 @@ class TargetModel(models.Model):
             else:
                 x = layer(x, training=training)
 
-        # x = self.base_model.base_model(x)
-
         x = tf.reshape(x, shape=(n, -1))
         outputs = self.base_model.top_layer(x, training=training)
 
@@ -125,11 +123,14 @@ class TargetModelV2(models.Model):
                 
     def load_custom_weights_for_target_model_v1(self, path):
         self.target_model.load_custom_weights(path)
+        
+    def load_custom_weights_for_mobilenet(self, path):
+        self.target_model.load_custom_weights_for_mobilenet(path)
     
     def load_custom_weights(self, path):
         with open(path, "rb") as f:
             data = pickle.load(f)
-            self.load_weights(data)
+            self.set_weights(data)
             
     def save_custom_weights(self, path):
         with open(path, "wb") as f:
@@ -148,6 +149,66 @@ class TargetModelV2(models.Model):
             
         return outputs, Lpc
 
+    
+class TargetModelV3(models.Model):
+
+    def __init__(self):
+        super(TargetModelV3, self).__init__()
+
+        self.base_model = MobileNetV2()
+        self.add_block_num = []
+        feature_distinction_blocks = []
+
+        for layer in self.base_model.base_model.layers:
+            if layer.name.endswith("_add"):
+                h, w, c = layer.output_shape[1:]
+                feature_distinction_blocks.append(FeatureDistinctionBlock(h*w*c))
+                self.add_block_num.append(int(layer.name.split("_")[-2]))
+                
+        self.feature_distinction_blocks = feature_distinction_blocks
+
+    def load_custom_weights_for_mobilenet(self, path):
+        self.base_model.build(input_shape=(None, 160, 160, 3))
+        with open(path, "rb") as f:
+            weights = pickle.load(f)
+            self.base_model.set_weights(weights)
+
+    def load_custom_weights(self, path):
+        with open(path, "rb") as f:
+            weights = pickle.load(f)
+            self.set_weights(weights)
+
+    def save_custom_weights(self, path):
+        with open(path, "wb") as f:
+            weights = self.get_weights()
+            pickle.dump(weights, f)
+
+    def call(self, inputs, labels, training=False):
+        n = tf.shape(inputs)[0]
+        
+        x = inputs
+        cnt = 0
+
+        residual_input = None
+        Lpc = []
+
+        for layer in self.base_model.base_model.layers:
+            if residual_input is None and cnt < len(self.add_block_num) and layer.name.startswith(f"block_{self.add_block_num[cnt]}"):
+                residual_input = x
+
+            if layer.name.endswith("_add"):
+                x = layer([residual_input, x], training=training)
+                Lpc.append(self.feature_distinction_blocks[cnt](tf.reshape(x, shape=(n, -1)), labels, training=training))
+                residual_input = None
+                cnt += 1
+            else:
+                x = layer(x, training=training)
+
+        x = tf.reshape(x, shape=(n, -1))
+        outputs = self.base_model.top_layer(x, training=training)
+
+        return outputs , tf.reduce_mean(Lpc)
+    
 
 class VGG16(BaseModel):
 
