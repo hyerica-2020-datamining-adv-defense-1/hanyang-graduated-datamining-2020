@@ -15,4 +15,6 @@ class CarliniWagner(AttackMethod):
         self.attack = fb.attacks.L2CarliniWagnerAttack()
 
 
-# AttackMethod.register(CarliniWagner)
+#AttackMethod.register(CarliniWagner)
+
+
