@@ -1,6 +1,6 @@
 # 데이터마이닝
 
-이재영, 윤승한, 이국곤
+[이재영](https://github.com/wayexists02), [윤승한](https://github.com/dbstmdgks93), [이국곤](https://github.com/goodkorning)
 
 이 저장소는 한양대학교 대학원 김영훈 교수님의 데이터마이닝 수업을 위해 생성했습니다.
 
