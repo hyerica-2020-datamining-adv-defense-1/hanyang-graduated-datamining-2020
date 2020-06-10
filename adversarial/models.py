@@ -183,14 +183,15 @@ class TargetModelV3(models.Model):
             weights = self.get_weights()
             pickle.dump(weights, f)
 
-    def call(self, inputs, labels, training=False):
+    def call(self, inputs, labels=None, training=False):
         n = tf.shape(inputs)[0]
         
         x = inputs
         cnt = 0
 
         residual_input = None
-        Lpc = []
+        if labels is not None:
+            Lpc = []
 
         for layer in self.base_model.base_model.layers:
             if residual_input is None and cnt < len(self.add_block_num) and layer.name.startswith(f"block_{self.add_block_num[cnt]}"):
@@ -198,7 +199,8 @@ class TargetModelV3(models.Model):
 
             if layer.name.endswith("_add"):
                 x = layer([residual_input, x], training=training)
-                Lpc.append(self.feature_distinction_blocks[cnt](tf.reshape(x, shape=(n, -1)), labels, training=training))
+                if labels is not None:
+                    Lpc.append(self.feature_distinction_blocks[cnt](tf.reshape(x, shape=(n, -1)), labels, training=training))
                 residual_input = None
                 cnt += 1
             else:
@@ -207,7 +209,10 @@ class TargetModelV3(models.Model):
         x = tf.reshape(x, shape=(n, -1))
         outputs = self.base_model.top_layer(x, training=training)
 
-        return outputs , tf.reduce_mean(Lpc)
+        if labels is not None:
+            return outputs , tf.reduce_mean(Lpc)
+        else:
+            return outputs
     
 
 class VGG16(BaseModel):
